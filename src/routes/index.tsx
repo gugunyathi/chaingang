@@ -1,31 +1,33 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  ChevronLeft,
+  Bot,
+  Check,
   ChevronRight,
+  CircleDollarSign,
+  Copy,
   Heart,
+  Home,
   MessageCircle,
+  Send,
   Share2,
-  Trophy,
-  Wallet,
   Sparkles,
+  Trophy,
+  Users,
+  Wallet,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Lottery Live — 5 seconds to win" },
-      {
-        name: "description",
-        content:
-          "Lottery Live: $1 buys 10 tickets, 5 seconds on camera, AI picks the face it needs. Win clips post straight to the feed.",
-      },
-      { property: "og:title", content: "Lottery Live — 5 seconds to win" },
-      {
-        property: "og:description",
-        content:
-          "Hybrid lottery and live video arena for humans and AI agents. Queue by transaction hash, play for 5 seconds, win the rolling pot.",
-      },
+      { title: "Chain Gang — Five seconds to win" },
+      { name: "description", content: "Enter the live Chain Gang draw, follow the queue, and chase the rolling pot." },
+      { property: "og:title", content: "Chain Gang — Five seconds to win" },
+      { property: "og:description", content: "Enter the live Chain Gang draw, follow the queue, and chase the rolling pot." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
@@ -38,388 +40,164 @@ const queue = [
   { hash: "0x7b02…44a", user: "solmonk", chain: "Solana", tickets: 3 },
   { hash: "0x7b91…8fd", user: "nia.arc", chain: "Arbitrum", tickets: 10 },
 ];
-const feed = [
-  { user: "ava.base", tag: "WIN", note: "matched the AI's missing smirk", pot: "$412.80" },
-  { user: "composite #418", tag: "AI", note: "30-min composite reveal", pot: "—" },
-  { user: "tinker", tag: "WIN", note: "eyebrow arc completed the scene", pot: "$96.30" },
+const activity = [
+  { user: "ava.base", text: "matched the missing smirk", amount: "+$412.80", kind: "WIN" },
+  { user: "agent_07", text: "joined with 7 tickets", amount: "", kind: "AI" },
+  { user: "tinker", text: "completed the eyebrow arc", amount: "+$96.30", kind: "WIN" },
 ];
 
-const card = "rounded-xl border border-border bg-card p-4";
-
-function LiveCard({ count }: { count: number }) {
-  const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
-  const [likes, setLikes] = useState(2841);
-
-  const tap = (e: React.PointerEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const id = Date.now() + Math.random();
-    setHearts((h) => [...h, { id, x: e.clientX - r.left, y: e.clientY - r.top }]);
-    setLikes((l) => l + 1);
-    setTimeout(() => setHearts((h) => h.filter((x) => x.id !== id)), 900);
-  };
-
-  return (
-    <div
-      onPointerDown={tap}
-      className="relative aspect-[4/5] select-none overflow-hidden rounded-xl border border-border bg-card sm:aspect-video lg:aspect-[4/5]"
-    >
-      <div className="absolute inset-0 heat-gradient opacity-15" />
-      <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-background/70 px-2.5 py-1 text-[11px] sm:left-4 sm:top-4 sm:px-3 sm:text-xs">
-        <span className="size-2 animate-pulse rounded-full bg-destructive" />
-        LIVE · ava.base · ticket 4/10
-      </div>
-      <div className="absolute inset-0 grid place-items-center">
-        <span
-          className="text-[22vw] font-bold leading-none text-primary sm:text-[7rem]"
-          style={{ textShadow: "0 0 40px currentColor" }}
-        >
-          {count}
-        </span>
-      </div>
-      {hearts.map((h) => (
-        <Heart
-          key={h.id}
-          className="heart-pop pointer-events-none absolute size-12 fill-primary text-primary"
-          style={{ left: h.x, top: h.y }}
-        />
-      ))}
-      <div className="absolute inset-x-3 bottom-3 space-y-2 sm:inset-x-4 sm:bottom-4 sm:space-y-3">
-        <p className="text-xs text-muted-foreground sm:text-sm">
-          Tap the screen to drop hearts · {likes.toLocaleString()} likes
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <button className="heat-gradient min-w-[8rem] flex-1 rounded-full py-2.5 text-sm font-semibold text-primary-foreground">
-            Join queue
-          </button>
-          <button className="rounded-full border border-border bg-background/60 px-4 py-2.5 text-sm">
-            Spectate
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+function Panel({ id, children, className = "" }: { id?: string; children: React.ReactNode; className?: string }) {
+  return <section id={id} className={`border-b border-border bg-card px-4 py-5 sm:rounded-lg sm:border ${className}`}>{children}</section>;
 }
-
-function FeedCard() {
-  return (
-    <div className={card}>
-      <h2 className="text-sm font-semibold">Win feed</h2>
-      <div className="mt-3 space-y-3">
-        {feed.map((f) => (
-          <div key={f.user} className="flex items-center gap-3 rounded-lg bg-secondary/60 p-3">
-            <div className="grid size-10 place-items-center rounded-lg heat-gradient text-xs font-bold text-primary-foreground">
-              {f.tag}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{f.user}</p>
-              <p className="truncate text-xs text-muted-foreground">{f.note}</p>
-            </div>
-            <span className="text-sm font-semibold text-win">{f.pot}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PotCard() {
-  return (
-    <div className={card}>
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold">Rolling pot</h2>
-        <span className="text-xs text-muted-foreground">losses roll over</span>
-      </div>
-      <p className="mt-1 text-3xl font-bold text-primary">$1,284.57</p>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-        {[
-          ["Ticket", "$0.09"],
-          ["PvP min", "$0.20"],
-          ["Next composite", "12:04"],
-        ].map(([k, v]) => (
-          <div key={k} className="rounded-lg bg-secondary/60 p-2">
-            <p className="text-muted-foreground">{k}</p>
-            <p className="font-semibold">{v}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function QueueCard() {
-  return (
-    <div className={card}>
-      <h2 className="text-sm font-semibold">Queue · by hash order</h2>
-      <ul className="mt-3 space-y-2 text-sm">
-        {queue.map((q, i) => (
-          <li key={q.hash} className="flex items-center gap-3 rounded-lg bg-secondary/60 p-2.5">
-            <span className="w-4 text-xs text-muted-foreground">{i + 1}</span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">
-                {q.user}
-                {q.agent && (
-                  <span className="ml-2 rounded bg-accent/20 px-1.5 py-0.5 text-[10px] text-accent">
-                    AI agent
-                  </span>
-                )}
-              </p>
-              <p className="font-mono text-[11px] text-muted-foreground">
-                {q.hash} · {q.chain}
-              </p>
-            </div>
-            <span className="text-xs text-muted-foreground">{q.tickets} left</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        Ties break by longest session, then transaction count.
-      </p>
-    </div>
-  );
-}
-
-function WinnerCard() {
-  return (
-    <div className={card}>
-      <h2 className="text-sm font-semibold">Winner options</h2>
-      <div className="mt-3 grid gap-2">
-        {["Cash out", "PvP bet · from $0.20", "Keep playing random AI bets"].map((o) => (
-          <button
-            key={o}
-            className="rounded-lg border border-border px-3 py-2.5 text-left text-sm transition-colors hover:border-primary"
-          >
-            {o}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AiCard() {
-  return (
-    <div className={card}>
-      <h2 className="text-sm font-semibold">AI target · composite #419</h2>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Pulling from social trends, prediction markets and news. Missing elements:
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        {["half-smile", "raised brow", "side light", "green jacket", "wide eyes"].map((t) => (
-          <span key={t} className="rounded-full border border-primary/40 px-3 py-1 text-primary">
-            {t}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PayCard() {
-  return (
-    <div className={card}>
-      <h2 className="text-sm font-semibold">Pay in</h2>
-      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-        {["Crypto", "Card", "x402 (agents)", "Apple Pay", "Google Pay", "WhatsApp", "Telegram"].map(
-          (p) => (
-            <span key={p} className="rounded-lg bg-secondary/60 px-3 py-1.5">
-              {p}
-            </span>
-          ),
-        )}
-      </div>
-    </div>
-  );
-}
-
-const menu = [
-  { icon: Heart, label: "Likes" },
-  { icon: MessageCircle, label: "Chat" },
-  { icon: Trophy, label: "Leaderboard" },
-  { icon: Sparkles, label: "AI composite" },
-  { icon: Wallet, label: "Wallet" },
-  { icon: Share2, label: "Share" },
-];
 
 function Index() {
   const [count, setCount] = useState(5);
-  const [page, setPage] = useState(0);
-  const stripRef = useRef<HTMLDivElement>(null);
-  const pagerRef = useRef<HTMLDivElement>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState("ava.base");
+  const [queued, setQueued] = useState(false);
+  const [watching, setWatching] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(2841);
+  const [payment, setPayment] = useState("Crypto");
+  const [winnerOption, setWinnerOption] = useState("Cash out");
+  const [notice, setNotice] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chat, setChat] = useState("");
+  const [messages, setMessages] = useState(["ava.base: Five seconds. Make it count.", "solmonk: That pot is moving!"]);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const scrollStrip = (dir: number) =>
-    stripRef.current?.scrollBy({ left: dir * 160, behavior: "smooth" });
+  const notify = (message: string) => {
+    setNotice(message);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(""), 2600);
+  };
 
   useEffect(() => {
-    const t = setInterval(() => setCount((c) => (c === 1 ? 5 : c - 1)), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setCount((value) => (value === 1 ? 5 : value - 1)), 1000);
+    return () => {
+      clearInterval(timer);
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    };
   }, []);
 
-  const pages = [
-    { name: "Live", node: <LiveCard count={count} /> },
-    { name: "Feed", node: <FeedCard /> },
-    {
-      name: "Pot",
-      node: (
-        <div className="space-y-4">
-          <PotCard />
-          <QueueCard />
-        </div>
-      ),
-    },
-    {
-      name: "More",
-      node: (
-        <div className="space-y-4">
-          <WinnerCard />
-          <AiCard />
-          <PayCard />
-        </div>
-      ),
-    },
-  ];
-
-  const goPage = (i: number) => {
-    const el = pagerRef.current;
-    if (!el) return;
-    const next = Math.max(0, Math.min(pages.length - 1, i));
-    el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
-    setPage(next);
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const sendChat = () => {
+    const clean = chat.trim();
+    if (!clean) return;
+    setMessages((current) => [...current, `you: ${clean}`]);
+    setChat("");
+    notify("Message sent");
+  };
+  const share = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: "Chain Gang", text: "Five seconds to win.", url: window.location.href });
+      else await navigator.clipboard.writeText(window.location.href);
+      notify("Share link ready");
+    } catch {
+      notify("Share cancelled");
+    }
   };
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-3 py-3 sm:px-6">
-          <div className="flex items-center gap-2">
-            <span className="heat-gradient size-7 rounded-lg sm:size-8" />
-            <h1 className="text-base font-bold sm:text-xl">Lottery Live</h1>
-          </div>
-          <div className="flex items-center gap-2 text-[11px] sm:text-xs">
-            <span className="hidden rounded-full border border-border px-3 py-1 text-muted-foreground sm:inline">
-              Base · auto-detect
+    <div className="min-h-screen bg-background pb-20 text-foreground sm:pb-8">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto grid h-16 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4">
+          <button onClick={() => scrollTo("live")} className="flex min-w-0 items-center gap-3 text-left" aria-label="Go to live draw">
+            <span className="relative grid size-9 shrink-0 place-items-center rounded-lg bg-primary font-display text-sm font-bold text-primary-foreground shadow-vault">CG</span>
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-muted-foreground"><span className="size-1.5 animate-pulse rounded-full bg-live" /> Live draw</span>
+              <span className="block truncate font-display text-lg font-bold">CHAIN GANG</span>
             </span>
-            <button className="heat-gradient glow rounded-full px-3 py-1.5 font-semibold text-primary-foreground sm:px-4">
-              $1 = 10 tickets
-            </button>
-          </div>
+          </button>
+          <Button variant="vaultOutline" size="sm" onClick={() => notify("Wallet connection is ready for setup")}><Wallet /> Connect</Button>
         </div>
       </header>
 
-      <section className="relative mx-auto w-full max-w-7xl py-4">
-        <div
-          ref={stripRef}
-          role="region"
-          aria-label="Active players"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowLeft") scrollStrip(-1);
-            if (e.key === "ArrowRight") scrollStrip(1);
-          }}
-          className="scrollbar-hide flex gap-3 overflow-x-auto scroll-smooth px-3 outline-none touch-pan-x focus-visible:ring-2 focus-visible:ring-primary sm:gap-4 sm:px-10"
-        >
-          {players.map((p, i) => (
-            <div key={p} className="flex w-14 shrink-0 flex-col items-center gap-1 sm:w-16">
-              <div className={`rounded-full p-[2px] ${i < 3 ? "ring-live" : "bg-secondary"}`}>
-                <div className="grid size-12 place-items-center rounded-full bg-card text-xs font-semibold sm:size-14 sm:text-sm">
-                  {p.slice(0, 2)}
-                </div>
-              </div>
-              <span className="max-w-full truncate text-[10px] text-muted-foreground">{p}</span>
-            </div>
-          ))}
-        </div>
-        <button
-          aria-label="Scroll players left"
-          onClick={() => scrollStrip(-1)}
-          className="absolute left-1 top-1/2 hidden -translate-y-1/2 rounded-full border border-border bg-background/80 p-1.5 backdrop-blur transition-colors hover:border-primary sm:grid"
-        >
-          <ChevronLeft className="size-4" />
-        </button>
-        <button
-          aria-label="Scroll players right"
-          onClick={() => scrollStrip(1)}
-          className="absolute right-1 top-1/2 hidden -translate-y-1/2 rounded-full border border-border bg-background/80 p-1.5 backdrop-blur transition-colors hover:border-primary sm:grid"
-        >
-          <ChevronRight className="size-4" />
-        </button>
-      </section>
-
-      {/* Mobile: swipeable pages */}
-      <div className="lg:hidden">
-        <div className="mb-2 flex items-center justify-center gap-4 px-3 text-[11px]">
-          {pages.map((p, i) => (
-            <button
-              key={p.name}
-              onClick={() => goPage(i)}
-              className={i === page ? "font-semibold text-primary" : "text-muted-foreground"}
-            >
-              {p.name}
+      <main className="mx-auto max-w-6xl sm:px-4 sm:pt-4">
+        <section aria-label="Active players" className="scrollbar-hide flex gap-4 overflow-x-auto border-b border-border px-4 py-4 sm:rounded-lg sm:border sm:bg-card">
+          {players.map((player, index) => (
+            <button key={player} onClick={() => { setSelectedPlayer(player); notify(`Watching ${player}`); }} className="group flex w-14 shrink-0 flex-col items-center gap-1.5" aria-pressed={selectedPlayer === player}>
+              <span className={`grid size-12 place-items-center rounded-full border-2 text-xs font-bold transition-transform group-active:scale-95 ${selectedPlayer === player ? "border-primary bg-primary text-primary-foreground" : index < 3 ? "border-live bg-secondary" : "border-border bg-secondary"}`}>{player.slice(0, 2).toUpperCase()}</span>
+              <span className="w-full truncate text-[10px] text-muted-foreground">{player}</span>
             </button>
           ))}
-        </div>
-        <div
-          ref={pagerRef}
-          role="region"
-          aria-label="Sections"
-          tabIndex={0}
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            setPage(Math.round(el.scrollLeft / el.clientWidth));
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowLeft") goPage(page - 1);
-            if (e.key === "ArrowRight") goPage(page + 1);
-          }}
-          className="scrollbar-hide flex snap-x snap-mandatory overflow-x-auto pb-24 outline-none touch-pan-x"
-        >
-          {pages.map((p) => (
-            <div key={p.name} className="w-full shrink-0 snap-center px-3">
-              {p.node}
-            </div>
-          ))}
-        </div>
-        <div className="fixed inset-x-0 bottom-4 z-20 flex justify-center gap-1.5">
-          {pages.map((p, i) => (
-            <span
-              key={p.name}
-              className={`h-1.5 rounded-full transition-all ${
-                i === page ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/40"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
+        </section>
 
-      {/* Tablet & desktop */}
-      <main className="mx-auto hidden w-full max-w-7xl gap-4 px-3 pb-16 sm:px-6 lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-        <div className="space-y-4 lg:sticky lg:top-20">
-          <LiveCard count={count} />
-          <FeedCard />
-        </div>
-        <div className="grid gap-4 [&>div]:h-fit">
-          <PotCard />
-          <QueueCard />
-          <WinnerCard />
-          <AiCard />
-          <PayCard />
+        <div className="grid gap-4 sm:mt-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:items-start">
+          <div className="min-w-0 space-y-4">
+            <section id="live" className="relative min-h-[560px] overflow-hidden border-b border-border bg-card sm:min-h-[680px] sm:rounded-lg sm:border">
+              <div className="vault-radial absolute inset-0" />
+              <div className="relative flex min-h-[560px] flex-col p-4 sm:min-h-[680px] sm:p-6">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0"><p className="text-xs font-bold uppercase text-primary">On camera now</p><h1 className="truncate font-display text-2xl font-bold">{selectedPlayer}</h1></div>
+                  <button onClick={() => notify("12,432 people are watching")} className="flex shrink-0 items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-2 text-xs font-semibold"><Users className="size-4 text-accent" />12.4K</button>
+                </div>
+
+                <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+                  <p className="text-xs font-bold uppercase text-muted-foreground">Rolling pot</p>
+                  <p className="mt-1 font-display text-5xl font-bold tabular-nums sm:text-7xl">$1,284<span className="text-primary">.57</span></p>
+                  <button onClick={() => { setLiked((value) => !value); setLikes((value) => value + (liked ? -1 : 1)); }} aria-label="Like live draw" aria-pressed={liked} className="relative mt-10 grid size-44 place-items-center rounded-full border-4 border-primary/30 bg-background/30 shadow-glow transition-transform active:scale-95 sm:size-56">
+                    <span className="absolute inset-0 animate-spin rounded-full border-t-4 border-primary motion-reduce:animate-none" />
+                    <span className="font-display text-8xl font-bold sm:text-9xl">{count}</span>
+                  </button>
+                  <div className="mt-7 flex gap-2">
+                    {[5, 4, 3, 2, 1].map((n) => <span key={n} className={`grid size-10 place-items-center rounded-md border text-sm font-bold ${n === count ? "border-primary bg-primary text-primary-foreground shadow-glow" : n > count ? "border-border bg-secondary text-muted-foreground" : "border-border/50 text-muted-foreground/40"}`}>{n}</span>)}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs"><button onClick={() => { setLiked((v) => !v); setLikes((v) => v + (liked ? -1 : 1)); }} className={`flex items-center gap-1.5 ${liked ? "text-primary" : "text-muted-foreground"}`}><Heart className={`size-4 ${liked ? "fill-current" : ""}`} />{likes.toLocaleString()}</button><span className="text-muted-foreground">Ticket 4 of 10</span></div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                    <Button variant="vault" size="touch" onClick={() => { setQueued((v) => !v); notify(queued ? "You left the queue" : "You joined with 10 tickets"); }}>{queued ? <><Check /> In queue</> : "PLAY NOW · $1"}</Button>
+                    <Button variant="vaultOutline" size="touchIcon" aria-label="Open chat" onClick={() => setChatOpen(true)}><MessageCircle /></Button>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase text-muted-foreground"><span>Next draw in 00:0{count}</span><span className="text-primary">Base · Auto</span></div>
+                </div>
+              </div>
+            </section>
+
+            <Panel id="feed">
+              <div className="flex items-center justify-between"><div><p className="text-xs font-bold uppercase text-primary">Live activity</p><h2 className="font-display text-xl font-bold">The feed</h2></div><Sparkles className="size-5 text-accent" /></div>
+              <div className="mt-4 space-y-2">
+                {activity.map((item) => <button key={item.user} onClick={() => { setSelectedPlayer(item.user); scrollTo("live"); }} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent bg-secondary p-3 text-left transition-colors hover:border-primary/40">
+                  <span className={`grid size-10 place-items-center rounded-md text-[10px] font-bold ${item.kind === "WIN" ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground"}`}>{item.kind}</span>
+                  <span className="min-w-0"><strong className="block truncate text-sm">{item.user}</strong><span className="block truncate text-xs text-muted-foreground">{item.text}</span></span>
+                  <strong className="text-sm text-accent">{item.amount}</strong>
+                </button>)}
+              </div>
+            </Panel>
+          </div>
+
+          <aside className="min-w-0 space-y-4 lg:sticky lg:top-20">
+            <Panel id="queue">
+              <div className="flex items-center justify-between"><div><p className="text-xs font-bold uppercase text-primary">Hash order</p><h2 className="font-display text-xl font-bold">Up next</h2></div><span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">4 waiting</span></div>
+              <div className="mt-4 space-y-2">{queue.map((item, index) => <button key={item.hash} onClick={() => notify(`${item.user} is #${index + 1} in line`)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-border p-3 text-left hover:border-primary/50"><span className="font-display text-lg font-bold text-muted-foreground">0{index + 1}</span><span className="min-w-0"><span className="flex items-center gap-1 truncate text-sm font-semibold">{item.user}{item.agent && <Bot className="size-3.5 text-primary" />}</span><span className="block truncate font-mono text-[10px] text-muted-foreground">{item.hash} · {item.chain}</span></span><span className="text-xs text-muted-foreground">{item.tickets} left</span></button>)}</div>
+            </Panel>
+
+            <Panel id="wallet">
+              <p className="text-xs font-bold uppercase text-primary">Winner setup</p><h2 className="font-display text-xl font-bold">Choose your move</h2>
+              <div className="mt-4 grid gap-2">{["Cash out", "PvP bet · from $0.20", "Keep playing AI bets"].map((option) => <button key={option} aria-pressed={winnerOption === option} onClick={() => { setWinnerOption(option); notify(`${option} selected`); }} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border p-3 text-left text-sm font-semibold ${winnerOption === option ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/50"}`}><span>{option}</span>{winnerOption === option ? <Check className="size-4" /> : <ChevronRight className="size-4 text-muted-foreground" />}</button>)}</div>
+              <p className="mt-5 text-xs font-bold uppercase text-muted-foreground">Pay with</p>
+              <div className="mt-2 flex flex-wrap gap-2">{["Crypto", "Card", "x402", "Apple Pay", "Google Pay"].map((method) => <button key={method} aria-pressed={payment === method} onClick={() => setPayment(method)} className={`rounded-full border px-3 py-2 text-xs font-semibold ${payment === method ? "border-accent bg-accent text-accent-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>{method}</button>)}</div>
+            </Panel>
+
+            <Panel id="target">
+              <div className="flex items-center gap-2 text-primary"><Sparkles className="size-4" /><p className="text-xs font-bold uppercase">AI target · #419</p></div><h2 className="mt-1 font-display text-xl font-bold">Build the missing face</h2><p className="mt-2 text-sm text-muted-foreground">The model is watching for these details.</p>
+              <div className="mt-3 flex flex-wrap gap-2">{["half-smile", "raised brow", "side light", "green jacket", "wide eyes"].map((tag) => <button key={tag} onClick={() => notify(`${tag} highlighted`)} className="rounded-full border border-primary/40 px-3 py-1.5 text-xs text-primary hover:bg-primary hover:text-primary-foreground">{tag}</button>)}</div>
+            </Panel>
+          </aside>
         </div>
       </main>
 
-      <nav
-        aria-label="Quick actions"
-        className="fixed right-2 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-2 sm:right-4"
-      >
-        {menu.map((m) => (
-          <button
-            key={m.label}
-            aria-label={m.label}
-            title={m.label}
-            className="grid size-10 place-items-center rounded-full border border-border bg-background/70 backdrop-blur transition-colors hover:border-primary hover:text-primary sm:size-11"
-          >
-            <m.icon className="size-5" />
-          </button>
-        ))}
+      <nav aria-label="Primary navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:hidden">
+        {[{ icon: Home, label: "Live", id: "live" }, { icon: Trophy, label: "Wins", id: "feed" }, { icon: Users, label: "Queue", id: "queue" }, { icon: CircleDollarSign, label: "Play", id: "wallet" }].map((item) => <button key={item.id} onClick={() => scrollTo(item.id)} className="flex min-h-11 flex-col items-center justify-center gap-0.5 text-[10px] text-muted-foreground active:text-primary"><item.icon className="size-5" />{item.label}</button>)}
+        <button onClick={share} className="flex min-h-11 flex-col items-center justify-center gap-0.5 text-[10px] text-muted-foreground active:text-primary"><Share2 className="size-5" />Share</button>
       </nav>
+
+      <div className="fixed bottom-5 right-5 z-30 hidden gap-2 sm:flex"><Button variant="vaultOutline" size="touchIcon" aria-label="Copy game link" onClick={async () => { await navigator.clipboard.writeText(window.location.href); notify("Link copied"); }}><Copy /></Button><Button variant="vault" size="touch" onClick={share}><Share2 /> Share draw</Button></div>
+
+      {chatOpen && <div className="fixed inset-0 z-50 flex items-end bg-background/70 backdrop-blur-sm sm:items-center sm:justify-center" onMouseDown={(event) => { if (event.target === event.currentTarget) setChatOpen(false); }}><div className="float-up w-full border-t border-border bg-card p-4 sm:max-w-md sm:rounded-lg sm:border"><div className="grid grid-cols-[minmax(0,1fr)_auto] items-center"><div><p className="text-xs font-bold uppercase text-primary">Live room</p><h2 className="font-display text-xl font-bold">Gang chat</h2></div><Button variant="ghost" size="icon" aria-label="Close chat" onClick={() => setChatOpen(false)}><X /></Button></div><div className="mt-4 max-h-56 space-y-2 overflow-y-auto">{messages.map((message, i) => <p key={`${message}-${i}`} className="rounded-lg bg-secondary p-3 text-sm">{message}</p>)}</div><div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2"><input value={chat} onChange={(e) => setChat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendChat(); }} placeholder="Say something…" aria-label="Chat message" className="min-w-0 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary" /><Button variant="vault" size="touchIcon" aria-label="Send message" onClick={sendChat}><Send /></Button></div></div></div>}
+
+      {notice && <div role="status" className="float-up fixed left-1/2 top-20 z-[60] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface-raised px-4 py-2 text-xs font-semibold shadow-xl"><Check className="size-4 text-accent" />{notice}</div>}
     </div>
   );
 }
