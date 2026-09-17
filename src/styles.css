@@ -28,31 +28,37 @@
   --color-ring: var(--ring);
   --color-win: var(--win);
   --font-display: "Space Grotesk", sans-serif;
-  --font-sans: "DM Sans", sans-serif;
+  --font-sans: "Figtree", sans-serif;
+  --shadow-vault: var(--vault-shadow);
+  --color-surface-raised: var(--surface-raised);
+  --color-live: var(--live);
 }
 
 :root {
-  --radius: 0.9rem;
-  --background: oklch(0.16 0.02 275);
-  --foreground: oklch(0.97 0.01 90);
-  --card: oklch(0.21 0.025 275);
-  --card-foreground: oklch(0.97 0.01 90);
-  --primary: oklch(0.75 0.19 55);
-  --primary-foreground: oklch(0.17 0.03 55);
-  --secondary: oklch(0.27 0.03 275);
-  --secondary-foreground: oklch(0.95 0.01 90);
-  --muted: oklch(0.25 0.025 275);
-  --muted-foreground: oklch(0.7 0.02 275);
-  --accent: oklch(0.7 0.17 320);
-  --accent-foreground: oklch(0.16 0.02 275);
+  --radius: 0.5rem;
+  --background: oklch(0.145 0.012 270);
+  --foreground: oklch(0.97 0.01 100);
+  --card: oklch(0.205 0.014 270);
+  --card-foreground: oklch(0.97 0.01 100);
+  --primary: oklch(0.68 0.22 35);
+  --primary-foreground: oklch(0.145 0.012 270);
+  --secondary: oklch(0.255 0.016 270);
+  --secondary-foreground: oklch(0.95 0.01 100);
+  --muted: oklch(0.23 0.014 270);
+  --muted-foreground: oklch(0.7 0.02 260);
+  --accent: oklch(0.83 0.14 165);
+  --accent-foreground: oklch(0.145 0.012 270);
   --destructive: oklch(0.6 0.23 25);
   --destructive-foreground: oklch(0.97 0.01 90);
-  --border: oklch(0.3 0.03 275);
-  --input: oklch(0.3 0.03 275);
-  --ring: oklch(0.75 0.19 55);
-  --win: oklch(0.83 0.18 145);
-  --gradient-heat: linear-gradient(135deg, oklch(0.75 0.19 55), oklch(0.7 0.17 320));
-  --glow-primary: 0 0 40px oklch(0.75 0.19 55 / 0.35);
+  --border: oklch(0.31 0.018 270);
+  --input: oklch(0.31 0.018 270);
+  --ring: oklch(0.68 0.22 35);
+  --win: oklch(0.83 0.14 165);
+  --surface-raised: oklch(0.275 0.018 270);
+  --live: oklch(0.64 0.24 25);
+  --gradient-heat: linear-gradient(135deg, oklch(0.68 0.22 35), oklch(0.74 0.2 50));
+  --glow-primary: 0 0 44px oklch(0.68 0.22 35 / 0.28);
+  --vault-shadow: 0 6px 0 oklch(0.42 0.15 32);
 }
 
 @layer base {
@@ -63,11 +69,13 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    min-width: 320px;
   }
   h1, h2, h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
+  button, a, input { -webkit-tap-highlight-color: transparent; }
 }
 
 @utility heat-gradient {
@@ -80,6 +88,23 @@
 
 @keyframes ring-spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes float-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@utility float-up {
+  animation: float-up 280ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 @utility ring-live {
