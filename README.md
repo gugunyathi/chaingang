@@ -1,6 +1,6 @@
 # chaingang
 
-create the app below, and use most economic use of tokens so it completes within the free tier allocation of prompts. do the ui only for now 
+create the app below, and use most economic use of tokens so it completes within the free tier allocation of prompts. do the ui only for now
 Here’s a Lovable‑ready prompt you can drop straight in to generate your app concept:
 
 🎯 Prompt for Lovable

@@ -72,11 +72,17 @@
     font-family: var(--font-sans);
     min-width: 320px;
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-family: var(--font-display);
     letter-spacing: 0;
   }
-  button, a, input { -webkit-tap-highlight-color: transparent; }
+  button,
+  a,
+  input {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @utility heat-gradient {
@@ -88,12 +94,20 @@
 }
 
 @keyframes ring-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes float-up {
-  from { transform: translateY(10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @utility float-up {
@@ -101,7 +115,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -121,9 +137,18 @@
 }
 
 @keyframes heart-pop {
-  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
-  20% { transform: translate(-50%, -60%) scale(1.15); opacity: 1; }
-  100% { transform: translate(-50%, -220%) scale(0.8); opacity: 0; }
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -60%) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -220%) scale(0.8);
+    opacity: 0;
+  }
 }
 
 @utility heart-pop {
