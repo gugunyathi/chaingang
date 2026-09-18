@@ -1,6 +1,6 @@
 {
   "name": "Chain Gang",
-  "description": "A five-second live lottery arena and draw game.",
-  "requestFramePermissions": [],
+  "description": "A ten-second live lottery arena and draw game with AI winner reels, mic and camera capture.",
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

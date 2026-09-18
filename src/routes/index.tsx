@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { CameraStudioModal, type WinnerPostData } from "@/components/CameraStudioModal";
+import { LiveCameraArena } from "@/components/LiveCameraArena";
+import { WinnerActionModal } from "@/components/WinnerActionModal";
+import { PvPArenaModal } from "@/components/PvPArenaModal";
+import { AiCriteriaHUD } from "@/components/AiCriteriaHUD";
+import { QueueTicketsHUD, INITIAL_QUEUE_DATA, type QueueItem } from "@/components/QueueTicketsHUD";
+import { triggerWinFireworks } from "@/lib/fireworks";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Bell,
@@ -17,6 +24,8 @@ import {
   Maximize2,
   Medal,
   MessageCircle,
+  Mic,
+  MicOff,
   Minimize2,
   Music,
   Pause,
@@ -33,19 +42,21 @@ import {
   Volume2,
   VolumeX,
   Wallet,
+  Wand2,
   X,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Chain Gang — Five seconds to win" },
+      { title: "Chain Gang — Ten seconds to win" },
       {
         name: "description",
         content: "Enter the live Chain Gang draw, follow the queue, and chase the rolling pot.",
       },
-      { property: "og:title", content: "Chain Gang — Five seconds to win" },
+      { property: "og:title", content: "Chain Gang — Ten seconds to win" },
       {
         property: "og:description",
         content: "Enter the live Chain Gang draw, follow the queue, and chase the rolling pot.",
@@ -106,7 +117,36 @@ const activity = [
     time: "22s",
   },
 ];
-const initialWinnerClips = [
+export interface ActivityItem {
+  id: string;
+  user: string;
+  text: string;
+  amount: string;
+  kind: string;
+  time: string;
+  mediaUrl?: string;
+  mediaType?: "video" | "image";
+  aiPrompt?: string;
+  micDecibels?: string;
+}
+
+export interface WinnerClipItem {
+  id: string;
+  winnerName: string;
+  amountWon: string;
+  caption: string;
+  timeAgo: string;
+  likes: number;
+  comments: number;
+  bgGradient: string;
+  hasVideo: boolean;
+  mediaUrl?: string;
+  mediaType?: "video" | "image";
+  aiPrompt?: string;
+  micDecibels?: string;
+}
+
+const initialWinnerClips: WinnerClipItem[] = [
   {
     id: "clip-1",
     winnerName: "ava.base",
@@ -117,6 +157,8 @@ const initialWinnerClips = [
     comments: 89,
     bgGradient: "from-amber-600/40 via-red-900/50 to-purple-950",
     hasVideo: true,
+    aiPrompt: "AI Curated: High-Roller Gold Aura",
+    micDecibels: "92 dB Cheer",
   },
   {
     id: "clip-2",
@@ -128,6 +170,8 @@ const initialWinnerClips = [
     comments: 42,
     bgGradient: "from-emerald-600/40 via-teal-900/50 to-slate-950",
     hasVideo: true,
+    aiPrompt: "AI Curated: 5-Second Warp Speed",
+    micDecibels: "96 dB Cheer",
   },
   {
     id: "clip-3",
@@ -139,6 +183,7 @@ const initialWinnerClips = [
     comments: 31,
     bgGradient: "from-purple-600/40 via-indigo-900/50 to-zinc-950",
     hasVideo: true,
+    aiPrompt: "AI Curated: Diamond Hands Tier",
   },
 ];
 
@@ -585,7 +630,7 @@ function Toggle({
 }
 
 function Index() {
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState(10);
   const [potAmount, setPotAmount] = useState<number>(1284.57);
   const [recentChange, setRecentChange] = useState<{
     amount: string;
@@ -607,11 +652,10 @@ function Index() {
   const [winnerOption, setWinnerOption] = useState("Cash out");
   const [notice, setNotice] = useState("");
   const [activePlayingClipId, setActivePlayingClipId] = useState<string | null>(null);
-  const [selectedStoryClip, setSelectedStoryClip] = useState<(typeof initialWinnerClips)[0] | null>(
-    null,
-  );
+  const [selectedStoryClip, setSelectedStoryClip] = useState<WinnerClipItem | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [recordOpen, setRecordOpen] = useState(false);
+  const [cameraStudioOpen, setCameraStudioOpen] = useState(false);
   const [recordingProgress, setRecordingProgress] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [chat, setChat] = useState("");
@@ -624,8 +668,9 @@ function Index() {
   const [timelineFullscreen, setTimelineFullscreen] = useState(false);
   const [alerts, setAlerts] = useState(true);
   const [autoplay, setAutoplay] = useState(true);
-  const [sound, setSound] = useState(true);
+  const [sound, setSound] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const storyTouchStart = useRef<{ x: number; y: number } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const playSoundEffect = useCallback(
@@ -764,6 +809,42 @@ function Index() {
     noticeTimer.current = setTimeout(() => setNotice(""), 2600);
   };
 
+  const handlePostClip = useCallback((clip: WinnerPostData) => {
+    const formattedClip: WinnerClipItem = {
+      id: clip.id,
+      winnerName: clip.winnerName,
+      amountWon: clip.amountWon,
+      caption: clip.caption,
+      timeAgo: clip.timeAgo,
+      likes: clip.likes,
+      comments: clip.comments,
+      bgGradient: clip.bgGradient,
+      hasVideo: clip.hasVideo,
+      mediaUrl: clip.mediaUrl,
+      mediaType: clip.mediaType,
+      aiPrompt: clip.aiPrompt,
+      micDecibels: clip.micDecibels,
+    };
+
+    setWinnerClips((prev) => [formattedClip, ...prev]);
+
+    setActivityList((prev) => [
+      {
+        id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        user: clip.winnerName,
+        text: `posted ${clip.mediaType === "video" ? "video reaction 🎥" : "AI photo 📸"} to timeline`,
+        amount: `+${clip.amountWon}`,
+        kind: "WIN",
+        time: "just now",
+        mediaUrl: clip.mediaUrl,
+        mediaType: clip.mediaType,
+        aiPrompt: clip.aiPrompt,
+        micDecibels: clip.micDecibels,
+      },
+      ...prev.slice(0, 15),
+    ]);
+  }, []);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCount((value) => {
@@ -780,24 +861,21 @@ function Index() {
     };
   }, [playSoundEffect]);
 
-  // Scroll listener: Hide floating icons on scroll, reappear on screen click or tap
+  // Tap/Click toggle for vertical floating icons: disappear and reappear on screen tap or click
   useEffect(() => {
-    const handleScroll = () => {
-      setShowFloatingIcons(false);
+    const handleScreenTap = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      // If clicking inside form input, keep focus intact
+      if (target && target.closest("input, textarea, select, [role='dialog']")) {
+        return;
+      }
+      setShowFloatingIcons((prev) => !prev);
     };
 
-    const handleScreenTap = () => {
-      setShowFloatingIcons(true);
-    };
-
-    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
     window.addEventListener("click", handleScreenTap);
-    window.addEventListener("touchstart", handleScreenTap, { passive: true });
 
     return () => {
-      window.removeEventListener("scroll", handleScroll, { capture: true });
       window.removeEventListener("click", handleScreenTap);
-      window.removeEventListener("touchstart", handleScreenTap);
     };
   }, []);
 
@@ -845,7 +923,8 @@ function Index() {
 
   useEffect(() => {
     if (count === 0) {
-      const isWin = queued || Math.random() > 0.45;
+      // Users recorded on camera live get to win
+      const isWin = true;
       const outcome = isWin ? "WIN" : "LOSE";
       setDrawResult(outcome);
       playSoundEffect(outcome);
@@ -864,33 +943,21 @@ function Index() {
           label: "Winner payout",
         });
 
-        setResultBanner(`🎉 WINNER! +$412.80 awarded to ${selectedPlayer}`);
+        setResultBanner(
+          `🎉 WINNER! +$412.80 awarded to @${selectedPlayer} (Live Camera Recorded Winner!)`,
+        );
 
         setActivityList((prev) => [
           {
             id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             user: selectedPlayer,
-            text: "matched the 5-second draw",
+            text: "matched 10s draw & captured victory 🏆",
             amount: "+$412.80",
             kind: "WIN",
             time: "now",
           },
           ...prev.slice(0, 10),
         ]);
-
-        const newClip = {
-          id: `clip-${Date.now()}`,
-          winnerName: selectedPlayer,
-          amountWon: "$412.80",
-          caption: `Live 5-second draw winner! Recorded video timestamp #${Math.floor(Math.random() * 899 + 100)} 🏆✨`,
-          timeAgo: "just now",
-          likes: 1,
-          comments: 0,
-          bgGradient: "from-rose-600/40 via-amber-900/50 to-neutral-950",
-          hasVideo: true,
-        };
-        setWinnerClips((prev) => [newClip, ...prev]);
-        notify("📹 Winner reaction recorded & posted to Winners Reel!");
       } else {
         // Rollover pot increase
         setPotAmount((prev) => Number((prev + 5.0).toFixed(2)));
@@ -905,22 +972,102 @@ function Index() {
       const resetTimer = setTimeout(() => {
         setDrawResult(null);
         setResultBanner(null);
-        setCount(5);
+        setCount(10);
       }, 1800);
 
       return () => clearTimeout(resetTimer);
     }
   }, [count, playSoundEffect, queued, selectedPlayer]);
 
+  const currentStoryIndex = selectedStoryClip
+    ? winnerClips.findIndex((c) => c.id === selectedStoryClip.id)
+    : -1;
+
+  const goToNextStory = useCallback(() => {
+    if (currentStoryIndex !== -1 && currentStoryIndex < winnerClips.length - 1) {
+      const nextStory = winnerClips[currentStoryIndex + 1];
+      setSelectedStoryClip(nextStory);
+      playSoundEffect("WIN");
+      notify(`Status ${currentStoryIndex + 2}/${winnerClips.length}: @${nextStory.winnerName}`);
+    } else if (currentStoryIndex === winnerClips.length - 1) {
+      notify("Reached latest status story");
+    }
+  }, [currentStoryIndex, winnerClips, playSoundEffect]);
+
+  const goToPrevStory = useCallback(() => {
+    if (currentStoryIndex > 0) {
+      const prevStory = winnerClips[currentStoryIndex - 1];
+      setSelectedStoryClip(prevStory);
+      playSoundEffect("WIN");
+      notify(`Status ${currentStoryIndex}/${winnerClips.length}: @${prevStory.winnerName}`);
+    } else if (currentStoryIndex === 0) {
+      notify("First status story");
+    }
+  }, [currentStoryIndex, winnerClips, playSoundEffect]);
+
+  const handleStoryTouchStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    if (touch) {
+      storyTouchStart.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
+  const handleStoryTouchEnd = (event: React.TouchEvent) => {
+    const start = storyTouchStart.current;
+    const touch = event.changedTouches[0];
+    storyTouchStart.current = null;
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    // Check horizontal swipe (left/right)
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+      if (dx < 0) {
+        // Swiped Left -> scroll to next status
+        goToNextStory();
+      } else {
+        // Swiped Right -> scroll to previous status
+        goToPrevStory();
+      }
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+      if (selectedStoryClip) {
+        if (e.key === "Escape") {
+          setSelectedStoryClip(null);
+          return;
+        }
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          goToNextStory();
+          return;
+        }
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          goToPrevStory();
+          return;
+        }
+      }
       if (e.key === "Escape" && timelineFullscreen) {
         setTimelineFullscreen(false);
+      }
+      if (e.key === "ArrowLeft") {
+        selectPage(mobilePage - 1);
+      }
+      if (e.key === "ArrowRight") {
+        selectPage(mobilePage + 1);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [timelineFullscreen]);
+  }, [timelineFullscreen, mobilePage, selectedStoryClip, goToNextStory, goToPrevStory]);
 
   const selectPage = (page: number) =>
     setMobilePage(Math.max(0, Math.min(pageNames.length - 1, page)));
@@ -1212,48 +1359,22 @@ function Index() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
-              {resultBanner && (
-                <div
-                  className={`animate-outcome mb-2 flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-xl ${
-                    drawResult === "WIN"
-                      ? "border-accent bg-accent/20 text-accent"
-                      : "border-destructive bg-destructive/20 text-destructive-foreground"
-                  }`}
-                >
-                  {drawResult === "WIN" ? <Trophy className="size-4" /> : <X className="size-4" />}
-                  {resultBanner}
-                </div>
-              )}
-
-              <Button
-                variant="ghost"
-                onClick={toggleLike}
-                aria-label="Like live draw"
-                aria-pressed={liked}
-                className={`relative mt-6 size-44 rounded-full border-4 p-0 transition-all active:scale-95 sm:size-56 ${
-                  drawResult === "WIN"
-                    ? "animate-outcome animate-win-glow border-accent bg-accent/20 shadow-glow"
-                    : drawResult === "LOSE"
-                      ? "animate-outcome animate-lose-shake border-destructive bg-destructive/20 shadow-xl"
-                      : "border-primary/30 bg-background/30 shadow-glow"
-                }`}
-              >
-                {drawResult === null && (
-                  <span className="absolute inset-0 animate-spin rounded-full border-t-4 border-primary motion-reduce:animate-none" />
-                )}
-                {drawResult === "WIN" ? (
-                  <span className="animate-outcome font-display text-6xl font-black text-accent sm:text-8xl">
-                    WIN!
-                  </span>
-                ) : drawResult === "LOSE" ? (
-                  <span className="animate-outcome font-display text-6xl font-black text-destructive sm:text-8xl">
-                    LOSE
-                  </span>
-                ) : (
-                  <span className="font-display text-8xl font-bold sm:text-9xl">{count}</span>
-                )}
-              </Button>
+            <div className="my-4 flex flex-1 flex-col justify-center">
+              <LiveCameraArena
+                count={count}
+                drawResult={drawResult}
+                resultBanner={resultBanner}
+                potInteger={potInteger}
+                potDecimal={potDecimal}
+                recentChange={recentChange}
+                selectedPlayer={selectedPlayer}
+                liked={liked}
+                onToggleLike={toggleLike}
+                onPostWinnerClip={handlePostClip}
+                playSoundEffect={playSoundEffect}
+                notify={notify}
+                onScreenClick={() => setShowFloatingIcons((prev) => !prev)}
+              />
             </div>
           )}
           <div className="space-y-3">
@@ -1297,6 +1418,22 @@ function Index() {
                 "PLAY NOW · $1"
               )}
             </Button>
+
+            {/* AI Camera & Mic Studio Quick Button */}
+            <Button
+              variant="vaultOutline"
+              size="sm"
+              onClick={() => {
+                setCameraStudioOpen(true);
+                notify("AI Winner Camera & Mic Studio opened 📸🎙️");
+              }}
+              className="w-full flex items-center justify-center gap-2 border-accent/40 bg-accent/10 text-accent hover:bg-accent/20 font-bold h-9 rounded-lg"
+            >
+              <Camera className="size-4 text-accent" />
+              <Mic className="size-4 text-accent" />
+              <span>AI Camera & Mic Winner Studio</span>
+            </Button>
+
             <div className="flex items-center justify-between text-[10px] font-semibold uppercase text-muted-foreground">
               <span>Next draw in 00:0{count}</span>
               <span className="text-primary">Base · Auto</span>
@@ -1318,26 +1455,40 @@ function Index() {
           <p className="text-xs font-bold uppercase text-primary">Status & Reels</p>
           <h2 className="font-display text-xl font-bold">Winners Timeline</h2>
         </div>
-        <Button
-          variant="vault"
-          size="sm"
-          onClick={() => {
-            setTimelineFullscreen(true);
-            notify("Full-screen vertical reels activated 🎬 (swipe or scroll vertically)");
-          }}
-          className="flex items-center gap-1.5 h-8 px-3 text-xs"
-          aria-label="Enter full-screen vertical scroll"
-        >
-          <Maximize2 className="size-3.5" />
-          <span>Full Screen</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="vaultOutline"
+            size="sm"
+            onClick={() => {
+              setCameraStudioOpen(true);
+              notify("Opening AI Winner Camera & Mic Studio");
+            }}
+            className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-bold border-accent/40 text-accent"
+          >
+            <Camera className="size-3.5" />
+            <span>AI Studio</span>
+          </Button>
+          <Button
+            variant="vault"
+            size="sm"
+            onClick={() => {
+              setTimelineFullscreen(true);
+              notify("Full-screen vertical reels activated 🎬 (swipe or scroll vertically)");
+            }}
+            className="flex items-center gap-1.5 h-8 px-3 text-xs"
+            aria-label="Enter full-screen vertical scroll"
+          >
+            <Maximize2 className="size-3.5" />
+            <span>Full Screen</span>
+          </Button>
+        </div>
       </div>
 
       {/* Status Stories Horizontal Bar with Floating Status Indicators */}
       <div className="mt-4 flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
         <Button
           variant="ghost"
-          onClick={() => setRecordOpen(true)}
+          onClick={() => setCameraStudioOpen(true)}
           className="flex h-auto shrink-0 flex-col items-center gap-1.5 p-0"
         >
           <div className="relative grid size-12 place-items-center rounded-full border-2 border-dashed border-primary bg-primary/10 text-primary transition-transform active:scale-95">
@@ -1366,12 +1517,20 @@ function Index() {
                   playSoundEffect("WIN");
                   notify(`Viewing status story of @${clip.winnerName}`);
                 }}
-                className="relative grid size-12 place-items-center rounded-full border-2 border-accent bg-secondary p-0.5 shadow-glow transition-transform group-active:scale-95 group-hover:border-primary cursor-pointer"
+                className="relative grid size-12 place-items-center rounded-full border-2 border-accent bg-secondary p-0.5 shadow-glow transition-transform group-active:scale-95 group-hover:border-primary cursor-pointer overflow-visible"
                 aria-label={`View ${clip.winnerName}'s status story`}
               >
-                <span className="grid size-full place-items-center rounded-full bg-primary font-display text-xs font-bold text-primary-foreground">
-                  {clip.winnerName.slice(0, 2).toUpperCase()}
-                </span>
+                {clip.mediaUrl && clip.mediaType === "image" ? (
+                  <img
+                    src={clip.mediaUrl}
+                    alt={clip.winnerName}
+                    className="size-full rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="grid size-full place-items-center rounded-full bg-primary font-display text-xs font-bold text-primary-foreground">
+                    {clip.winnerName.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
                 {/* Floating status icon badge on story avatar */}
                 <span
                   className="animate-float-bob absolute -top-1 -right-1 grid size-5 place-items-center rounded-full border border-accent/40 bg-black/80 text-[10px] shadow-lg backdrop-blur-md transition-transform hover:scale-125"
@@ -1406,6 +1565,29 @@ function Index() {
             key={clip.id}
             className={`relative flex min-h-[400px] flex-col justify-between overflow-hidden rounded-2xl border border-border bg-gradient-to-b ${clip.bgGradient} p-4 shadow-2xl sm:min-h-[440px]`}
           >
+            {/* Real Captured / AI Generated Media Background */}
+            {clip.mediaUrl && (
+              <>
+                {clip.mediaType === "video" ? (
+                  <video
+                    src={clip.mediaUrl}
+                    autoPlay
+                    loop
+                    playsInline
+                    muted={!sound}
+                    className="absolute inset-0 size-full object-cover z-0"
+                  />
+                ) : (
+                  <img
+                    src={clip.mediaUrl}
+                    alt={clip.caption}
+                    className="absolute inset-0 size-full object-cover z-0"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/60 pointer-events-none z-0" />
+              </>
+            )}
+
             {/* Top Floating Video Header Overlay (Clickable Status Badges) */}
             <div className="z-10 flex items-center justify-between">
               <Button
@@ -1443,12 +1625,12 @@ function Index() {
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    setRecordOpen(true);
-                    notify("Open reaction video recorder");
+                    setCameraStudioOpen(true);
+                    notify("Open AI winner camera & mic studio");
                   }}
                   className="flex h-auto items-center gap-1.5 rounded-full border border-red-400/30 bg-red-600/90 px-3 py-1 text-[10px] font-extrabold text-white shadow-lg backdrop-blur-md animate-pulse active:scale-95 p-0"
                 >
-                  <span className="size-1.5 rounded-full bg-white" /> REC CLIP
+                  <Camera className="size-3 text-white" /> AI STUDIO
                 </Button>
                 <span className="rounded-full border border-white/20 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">
                   {clip.timeAgo}
@@ -1467,7 +1649,7 @@ function Index() {
                 className="animate-float-slow flex h-auto items-center gap-1.5 rounded-full border border-accent/40 bg-black/60 px-3 py-1 text-[10px] font-bold text-accent shadow-xl backdrop-blur-md transition-all active:scale-95 hover:bg-black/80"
               >
                 <Sparkles className="size-3 text-accent" />
-                <span>Verified Draw Hash</span>
+                <span>{clip.aiPrompt ? "👑 AI Curated" : "Verified Draw Hash"}</span>
               </Button>
               <Button
                 variant="ghost"
@@ -1478,7 +1660,9 @@ function Index() {
                 className="animate-float-bob flex h-auto items-center gap-1.5 rounded-full border border-primary/40 bg-black/60 px-3 py-1 text-[10px] font-bold text-primary shadow-xl backdrop-blur-md transition-all active:scale-95 hover:bg-black/80"
               >
                 <Flame className="size-3 text-primary" />
-                <span>{idx % 2 === 0 ? "🔥 Hot Reel" : "⚡ Instant Payout"}</span>
+                <span>
+                  {clip.micDecibels || (idx % 2 === 0 ? "🔥 Hot Reel" : "⚡ Instant Payout")}
+                </span>
               </Button>
             </div>
 
@@ -1643,7 +1827,31 @@ function Index() {
                   key={item.id}
                   onClick={() => {
                     setSelectedPlayer(item.user);
-                    if (mobile) {
+                    if (item.mediaUrl) {
+                      const matched = winnerClips.find(
+                        (c) => c.id === item.id || c.winnerName === item.user,
+                      );
+                      if (matched) {
+                        setSelectedStoryClip(matched);
+                      } else {
+                        setSelectedStoryClip({
+                          id: item.id,
+                          winnerName: item.user,
+                          amountWon: item.amount || "$412.80",
+                          caption: `${item.user} ${item.text}`,
+                          timeAgo: `${item.time} ago`,
+                          likes: 18,
+                          comments: 3,
+                          bgGradient: "from-amber-600/40 via-red-900/50 to-purple-950",
+                          hasVideo: item.mediaType === "video",
+                          mediaUrl: item.mediaUrl,
+                          mediaType: item.mediaType || "image",
+                          aiPrompt: item.aiPrompt,
+                          micDecibels: item.micDecibels,
+                        });
+                      }
+                      playSoundEffect("WIN");
+                    } else if (mobile) {
                       selectPage(0);
                     } else {
                       scrollTo("live");
@@ -1651,17 +1859,53 @@ function Index() {
                   }}
                   className="grid h-auto w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent bg-secondary/80 p-3 text-left transition-all hover:border-primary/40 hover:bg-secondary"
                 >
-                  <span
-                    className={`grid size-10 place-items-center rounded-md text-[10px] font-bold ${
-                      item.kind === "WIN"
-                        ? "bg-accent text-accent-foreground shadow-sm"
-                        : "bg-primary text-primary-foreground"
-                    }`}
-                  >
-                    {item.kind}
-                  </span>
+                  {item.mediaUrl ? (
+                    <div className="relative size-11 shrink-0 overflow-hidden rounded-md border border-accent/60 bg-black shadow-md">
+                      {item.mediaType === "video" ? (
+                        <video
+                          src={item.mediaUrl}
+                          className="size-full object-cover"
+                          muted
+                          autoPlay
+                          loop
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          src={item.mediaUrl}
+                          alt={item.text}
+                          className="size-full object-cover"
+                        />
+                      )}
+                      <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[8px] font-bold text-accent text-center py-0.5">
+                        {item.mediaType === "video" ? "🎥 Reel" : "📸 AI"}
+                      </span>
+                    </div>
+                  ) : (
+                    <span
+                      className={`grid size-10 place-items-center rounded-md text-[10px] font-bold ${
+                        item.kind === "WIN"
+                          ? "bg-accent text-accent-foreground shadow-sm"
+                          : "bg-primary text-primary-foreground"
+                      }`}
+                    >
+                      {item.kind}
+                    </span>
+                  )}
                   <span className="min-w-0">
-                    <strong className="block truncate text-sm">{item.user}</strong>
+                    <span className="flex items-center gap-1.5">
+                      <strong className="block truncate text-sm">{item.user}</strong>
+                      {item.aiPrompt && (
+                        <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[9px] font-extrabold text-accent">
+                          AI Shot
+                        </span>
+                      )}
+                      {item.micDecibels && (
+                        <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                          🎙️ {item.micDecibels}
+                        </span>
+                      )}
+                    </span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {item.text}
                     </span>
@@ -2014,6 +2258,19 @@ function Index() {
               variant="ghost"
               size="icon"
               onClick={() => {
+                setTimelineFullscreen(true);
+                notify("Full screen mode activated 🖥️ (Esc to exit)");
+              }}
+              aria-label="Enter full-screen mode"
+              title="Full screen view"
+              className="size-9 rounded-lg border border-border/80 bg-secondary/80 text-foreground transition-all active:scale-95 hover:text-primary"
+            >
+              <Maximize2 className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
                 setSound((v) => {
                   const next = !v;
                   notify(next ? "Sound enabled 🔊" : "Sound muted 🔇");
@@ -2045,7 +2302,7 @@ function Index() {
         </div>
       </header>
 
-      <main className="sm:hidden">
+      <main className="w-full">
         <div
           className="overflow-hidden touch-pan-y"
           onTouchStart={handleTouchStart}
@@ -2055,21 +2312,31 @@ function Index() {
             className="flex transition-transform duration-300 ease-out motion-reduce:transition-none"
             style={{ transform: `translateX(-${mobilePage * 100}%)` }}
           >
-            <article className="h-[calc(100dvh-5.5rem)] w-full shrink-0 overflow-y-auto overscroll-contain">
-              <LivePanel mobile />
+            <article className="h-[calc(100dvh-5rem)] w-full shrink-0 overflow-y-auto overscroll-contain px-2 sm:px-4">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl py-2">
+                <LivePanel mobile />
+              </div>
             </article>
-            <article className="h-[calc(100dvh-5.5rem)] w-full shrink-0 overflow-y-auto overscroll-contain">
-              <WinnersTimelinePanel mobile />
+            <article className="h-[calc(100dvh-5rem)] w-full shrink-0 overflow-y-auto overscroll-contain px-2 sm:px-4">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl py-2">
+                <WinnersTimelinePanel mobile />
+              </div>
             </article>
-            <article className="h-[calc(100dvh-5.5rem)] w-full shrink-0 overflow-y-auto overscroll-contain">
-              <ActivityPanel mobile />
+            <article className="h-[calc(100dvh-5rem)] w-full shrink-0 overflow-y-auto overscroll-contain px-2 sm:px-4">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl py-2">
+                <ActivityPanel mobile />
+              </div>
             </article>
-            <article className="h-[calc(100dvh-5.5rem)] w-full shrink-0 overflow-y-auto overscroll-contain">
-              <QueuePanel mobile />
-              <SettingsPanel mobile />
+            <article className="h-[calc(100dvh-5rem)] w-full shrink-0 overflow-y-auto overscroll-contain px-2 sm:px-4">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl space-y-4 py-2">
+                <QueuePanel mobile />
+                <SettingsPanel mobile />
+              </div>
             </article>
-            <article className="h-[calc(100dvh-5.5rem)] w-full shrink-0 overflow-y-auto overscroll-contain">
-              <WalletPanel mobile />
+            <article className="h-[calc(100dvh-5rem)] w-full shrink-0 overflow-y-auto overscroll-contain px-2 sm:px-4">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl py-2">
+                <WalletPanel mobile />
+              </div>
             </article>
           </div>
         </div>
@@ -2096,7 +2363,8 @@ function Index() {
                   size="icon"
                   aria-label={`Open ${name}`}
                   onClick={() => selectPage(index)}
-                  className={`size-2 rounded-full p-0 transition-all ${index === mobilePage ? "bg-primary scale-125 shadow-glow" : "bg-muted-foreground/40"}`}
+                  className={`size-2.5 rounded-full p-0 transition-all ${index === mobilePage ? "bg-primary scale-125 shadow-glow" : "bg-muted-foreground/40 hover:bg-muted-foreground"}`}
+                  title={name}
                 />
               ))}
             </div>
@@ -2114,10 +2382,10 @@ function Index() {
         )}
       </main>
 
-      {/* Independently Floating Vertical Action Column */}
+      {/* Independently Floating Vertical Action Column (Mobile, Tablet, Desktop) */}
       <div
         aria-label="Floating quick actions and screens"
-        className={`fixed right-3.5 bottom-20 z-50 flex flex-col items-center gap-1.5 transition-all duration-300 ease-in-out sm:hidden ${
+        className={`fixed right-3.5 bottom-20 z-50 flex flex-col items-center gap-1.5 transition-all duration-300 ease-in-out ${
           showFloatingIcons && !timelineFullscreen
             ? "opacity-100 translate-x-0 pointer-events-auto"
             : "opacity-0 translate-x-12 pointer-events-none"
@@ -2189,88 +2457,190 @@ function Index() {
         })}
       </div>
 
-      <main className="mx-auto hidden max-w-6xl px-4 pb-8 pt-4 sm:block">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:items-start">
-          <div className="min-w-0 space-y-4">
-            <LivePanel />
-            <WinnersTimelinePanel />
-            <ActivityPanel />
-          </div>
-          <aside className="min-w-0 space-y-4 lg:sticky lg:top-20">
-            <QueuePanel />
-            <SettingsPanel />
-            <WalletPanel />
-          </aside>
-        </div>
-      </main>
-
       {selectedStoryClip && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-xl"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3 sm:p-6 backdrop-blur-xl"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedStoryClip(null);
           }}
+          onTouchStart={handleStoryTouchStart}
+          onTouchEnd={handleStoryTouchEnd}
         >
-          <div className="float-up relative flex h-[85vh] max-h-[640px] w-full max-w-sm flex-col justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-zinc-900 via-primary/20 to-black p-4 shadow-2xl">
-            {/* Top Story Header: Progress bar & User info */}
-            <div className="z-10 space-y-3">
-              <div className="flex gap-1">
-                <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
-                  <div className="h-full w-full bg-white animate-pulse" />
-                </div>
+          {/* Previous Status Chevron (Desktop / Tablet) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToPrevStory();
+            }}
+            disabled={currentStoryIndex <= 0}
+            aria-label="Previous status"
+            title="Previous status (Left arrow / swipe right)"
+            className={`hidden sm:flex size-11 rounded-full border border-white/20 bg-black/60 text-white shadow-2xl backdrop-blur-xl transition-all duration-200 mr-4 active:scale-95 ${
+              currentStoryIndex <= 0
+                ? "opacity-15 pointer-events-none"
+                : "opacity-80 hover:opacity-100 hover:bg-black/90 hover:scale-110"
+            }`}
+          >
+            <ChevronLeft className="size-6" />
+          </Button>
+
+          <div
+            className={`float-up relative flex h-[85vh] max-h-[660px] w-full max-w-sm flex-col justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b ${selectedStoryClip.bgGradient} p-4 sm:p-5 shadow-2xl select-none`}
+            onTouchStart={handleStoryTouchStart}
+            onTouchEnd={handleStoryTouchEnd}
+          >
+            {/* Top Story Header: Segmented progress bars & User info */}
+            <div className="z-20 space-y-3">
+              {/* Segmented status progress bars */}
+              <div className="flex items-center gap-1.5 px-0.5">
+                {winnerClips.map((clip, idx) => (
+                  <button
+                    key={`story-seg-${clip.id}`}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedStoryClip(clip);
+                      playSoundEffect("WIN");
+                    }}
+                    className={`h-1.5 flex-1 rounded-full transition-all cursor-pointer ${
+                      idx === currentStoryIndex
+                        ? "bg-white ring-1 ring-white/60 shadow-glow"
+                        : idx < currentStoryIndex
+                          ? "bg-white/80"
+                          : "bg-white/20 hover:bg-white/40"
+                    }`}
+                    aria-label={`Jump to status @${clip.winnerName}`}
+                    title={`Status @${clip.winnerName}`}
+                  />
+                ))}
               </div>
 
+              {/* User Avatar, Name, WIN Badge, and Close Button */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="grid size-8 place-items-center rounded-full bg-primary font-display text-xs font-bold text-primary-foreground shadow-glow">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-8.5 place-items-center rounded-full bg-primary font-display text-xs font-bold text-primary-foreground shadow-glow">
                     {selectedStoryClip.winnerName.slice(0, 2).toUpperCase()}
                   </span>
                   <div>
-                    <h3 className="font-display text-sm font-bold text-white flex items-center gap-1">
-                      @{selectedStoryClip.winnerName}
-                      <span className="rounded bg-accent/90 px-1 text-[9px] font-black text-accent-foreground">
+                    <h3 className="font-display text-sm font-bold text-white flex items-center gap-1.5">
+                      <span>@{selectedStoryClip.winnerName}</span>
+                      <span className="rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-black text-accent-foreground shadow-sm">
                         {selectedStoryClip.amountWon} WIN
                       </span>
                     </h3>
-                    <p className="text-[10px] text-white/70">{selectedStoryClip.timeAgo}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-white/70">
+                      <span>{selectedStoryClip.timeAgo}</span>
+                      <span>•</span>
+                      <span className="font-mono text-primary font-semibold">
+                        {currentStoryIndex + 1} of {winnerClips.length}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSelectedStoryClip(null)}
-                  className="size-8 rounded-full bg-black/40 text-white hover:bg-black/60"
-                  aria-label="Close story viewer"
-                >
-                  <X className="size-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedStoryClip(null)}
+                    className="size-8 rounded-full bg-black/40 text-white hover:bg-black/70 hover:text-white transition-all active:scale-90"
+                    aria-label="Close status viewer"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
+            {/* Real Captured / AI Generated Media Background */}
+            {selectedStoryClip.mediaUrl && (
+              <>
+                {selectedStoryClip.mediaType === "video" ? (
+                  <video
+                    src={selectedStoryClip.mediaUrl}
+                    autoPlay
+                    loop
+                    playsInline
+                    muted={!sound}
+                    className="absolute inset-0 size-full object-cover z-0"
+                  />
+                ) : (
+                  <img
+                    src={selectedStoryClip.mediaUrl}
+                    alt={selectedStoryClip.caption}
+                    className="absolute inset-0 size-full object-cover z-0"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/60 pointer-events-none z-0" />
+              </>
+            )}
+
+            {/* Clickable Left/Right Tap Zones for Instant Status Navigation */}
+            <div
+              className="absolute inset-y-16 left-0 w-1/4 z-10 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevStory();
+              }}
+              title="Tap for previous status"
+              aria-label="Previous status zone"
+            />
+            <div
+              className="absolute inset-y-16 right-0 w-1/4 z-10 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNextStory();
+              }}
+              title="Tap for next status"
+              aria-label="Next status zone"
+            />
+
             {/* Middle Story Player Canvas */}
             <div className="relative z-10 flex flex-1 flex-col items-center justify-center py-6 text-center">
-              <div className="animate-float-bob relative grid size-24 place-items-center rounded-full border-4 border-accent/60 bg-black/50 shadow-glow backdrop-blur-xl">
-                <Trophy className="size-10 text-accent" />
-                <span className="absolute -top-2 -right-2 grid size-7 place-items-center rounded-full bg-live text-xs font-black text-white shadow-lg animate-ping">
-                  🔥
-                </span>
-              </div>
-              <p className="mt-4 text-base font-bold text-white drop-shadow-md">
+              {!selectedStoryClip.mediaUrl && (
+                <div className="animate-float-bob relative grid size-24 sm:size-28 place-items-center rounded-full border-4 border-accent/60 bg-black/50 shadow-glow backdrop-blur-xl">
+                  <Trophy className="size-10 sm:size-12 text-accent" />
+                  <span className="absolute -top-2 -right-2 grid size-7 place-items-center rounded-full bg-live text-xs font-black text-white shadow-lg animate-ping">
+                    🔥
+                  </span>
+                </div>
+              )}
+              <p className="mt-4 text-base sm:text-lg font-bold text-white drop-shadow-md px-4">
                 "{selectedStoryClip.caption}"
               </p>
-              <div className="mt-2 flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-xs text-white/90 backdrop-blur-md">
-                <Sparkles className="size-3.5 text-accent" />
-                <span>Chain Reaction Story · Verified Payout</span>
+
+              <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5 px-3">
+                <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/50 px-3 py-1 text-xs text-white/90 backdrop-blur-md">
+                  <Sparkles className="size-3.5 text-accent" />
+                  <span>Verified Draw #{selectedStoryClip.id.slice(-4)} · Instant Payout</span>
+                </span>
+                {selectedStoryClip.aiPrompt && (
+                  <span className="rounded-full border border-accent/40 bg-accent/20 px-2.5 py-0.5 text-[10px] font-extrabold text-accent backdrop-blur-md">
+                    👑 {selectedStoryClip.aiPrompt}
+                  </span>
+                )}
+                {selectedStoryClip.micDecibels && (
+                  <span className="rounded-full border border-primary/40 bg-primary/20 px-2.5 py-0.5 text-[10px] font-bold text-primary backdrop-blur-md">
+                    🎙️ {selectedStoryClip.micDecibels}
+                  </span>
+                )}
+              </div>
+
+              {/* Navigation Helper Indicator */}
+              <div className="mt-4 flex items-center gap-1.5 text-[11px] font-medium text-white/60 bg-black/40 px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
+                <span>Swipe ↔ or use ← → arrow keys</span>
               </div>
             </div>
 
             {/* Bottom Story Footer Controls */}
-            <div className="z-10 flex items-center justify-between gap-3 pt-2">
+            <div className="z-20 flex items-center justify-between gap-3 pt-2">
               <Button
                 variant="vault"
                 size="sm"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setWinnerClips((prev) =>
                     prev.map((item) =>
                       item.id === selectedStoryClip.id ? { ...item, likes: item.likes + 1 } : item,
@@ -2285,92 +2655,58 @@ function Index() {
                 className="flex-1 gap-1.5"
               >
                 <Heart className="size-4 fill-current text-rose-400" />
-                <span>Like Story ({selectedStoryClip.likes})</span>
+                <span>Like ({selectedStoryClip.likes})</span>
               </Button>
 
               <Button
                 variant="vaultOutline"
                 size="touchIcon"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   shareClip(
                     selectedStoryClip.id,
                     selectedStoryClip.winnerName,
                     selectedStoryClip.amountWon,
                   );
                 }}
-                aria-label="Share story"
+                aria-label="Share status story"
               >
                 <Share2 className="size-4 text-primary" />
               </Button>
             </div>
           </div>
+
+          {/* Next Status Chevron (Desktop / Tablet) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNextStory();
+            }}
+            disabled={currentStoryIndex >= winnerClips.length - 1}
+            aria-label="Next status"
+            title="Next status (Right arrow / swipe left)"
+            className={`hidden sm:flex size-11 rounded-full border border-white/20 bg-black/60 text-white shadow-2xl backdrop-blur-xl transition-all duration-200 ml-4 active:scale-95 ${
+              currentStoryIndex >= winnerClips.length - 1
+                ? "opacity-15 pointer-events-none"
+                : "opacity-80 hover:opacity-100 hover:bg-black/90 hover:scale-110"
+            }`}
+          >
+            <ChevronRight className="size-6" />
+          </Button>
         </div>
       )}
 
-      {recordOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-md">
-          <div className="float-up w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Video className="size-5 text-primary" />
-                <h3 className="font-display text-lg font-bold">Record Winner Reaction</h3>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setRecordOpen(false)}>
-                <X className="size-4" />
-              </Button>
-            </div>
-
-            <div className="relative my-4 flex h-60 flex-col items-center justify-center overflow-hidden rounded-xl border border-primary/30 bg-secondary/80 p-4 text-center">
-              <span className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-extrabold text-white">
-                <span className="size-1.5 animate-ping rounded-full bg-white" /> CAMERA LIVE
-              </span>
-              <Film className="size-12 text-primary/60 animate-bounce" />
-              <p className="mt-2 text-xs font-semibold text-foreground">
-                {isRecording
-                  ? `Recording victory clip (${recordingProgress}%)...`
-                  : "Tap below to record victory video"}
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <Button
-                variant="vault"
-                size="touch"
-                className="w-full"
-                disabled={isRecording}
-                onClick={() => {
-                  setIsRecording(true);
-                  let progress = 0;
-                  const interval = setInterval(() => {
-                    progress += 20;
-                    setRecordingProgress(progress);
-                    if (progress >= 100) {
-                      clearInterval(interval);
-                      setIsRecording(false);
-                      setRecordOpen(false);
-                      const userClip = {
-                        id: `clip-${Date.now()}`,
-                        winnerName: "you",
-                        amountWon: "$412.80",
-                        caption: "Recorded my victory reaction! Instant cashout! 🎉🔥",
-                        timeAgo: "just now",
-                        likes: 12,
-                        comments: 2,
-                        bgGradient: "from-purple-600/40 via-rose-900/50 to-zinc-950",
-                        hasVideo: true,
-                      };
-                      setWinnerClips((prev) => [userClip, ...prev]);
-                      notify("📹 Winner video reaction recorded & posted!");
-                    }
-                  }, 500);
-                }}
-              >
-                {isRecording ? "Recording video..." : "Start Recording"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* AI Camera & Mic Winner Studio Modal */}
+      <CameraStudioModal
+        isOpen={cameraStudioOpen || recordOpen}
+        onClose={() => {
+          setCameraStudioOpen(false);
+          setRecordOpen(false);
+        }}
+        onPostClip={handlePostClip}
+      />
 
       <div className="fixed bottom-5 right-5 z-30 hidden gap-2 sm:flex">
         <Button
@@ -2446,153 +2782,371 @@ function Index() {
         </div>
       )}
 
-      {/* Full-Screen Vertical Scroll Timeline Reels (All extra overlayed items disappear) */}
+      {/* Full-Screen Paginated Experience (Timeline Reels, Live, Feed, Settings, Wallet) */}
       {timelineFullscreen && (
         <div
-          className="fixed inset-0 z-[100] h-[100dvh] w-screen overflow-y-scroll snap-y snap-mandatory touch-pan-y scrollbar-hide bg-black text-white"
+          className="fixed inset-0 z-[100] h-[100dvh] w-screen overflow-hidden bg-black text-white"
           tabIndex={0}
         >
-          {winnerClips.map((clip, index) => (
-            <section
-              key={`fullscreen-${clip.id}`}
-              className={`relative flex h-[100dvh] w-full snap-start snap-always flex-col justify-between overflow-hidden bg-gradient-to-b ${clip.bgGradient} p-5 sm:p-8`}
-            >
-              {/* Minimal Top Header: Exit Full Screen Button & Reels Counter */}
-              <div className="z-20 flex items-center justify-between pt-1">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setTimelineFullscreen(false);
-                    notify("Exited full screen");
-                  }}
-                  className="flex h-auto items-center gap-2 rounded-full border border-white/30 bg-black/60 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xl backdrop-blur-xl transition-all active:scale-95 hover:bg-black/80 hover:text-white"
-                  aria-label="Exit full-screen view"
-                >
-                  <Minimize2 className="size-4 text-primary" />
-                  <span>Exit Full Screen</span>
-                </Button>
-
-                <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-3.5 py-1 text-xs font-bold text-white shadow-xl backdrop-blur-xl">
-                  <span className="text-primary font-mono">{index + 1}</span>
-                  <span className="text-white/40">/</span>
-                  <span className="text-white/80 font-mono">{winnerClips.length}</span>
-                  <span className="ml-1 text-[11px] text-accent font-semibold">Swipe ↕</span>
-                </div>
+          {/* Top Fullscreen Header Bar */}
+          <header className="absolute inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-white/10 bg-black/60 px-4 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTimelineFullscreen(false);
+                  notify("Exited full screen");
+                }}
+                className="flex h-8 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 text-xs font-bold text-white shadow-xl backdrop-blur-md transition-all active:scale-95 hover:bg-white/20 hover:text-white"
+                aria-label="Exit full-screen view"
+              >
+                <Minimize2 className="size-3.5 text-primary" />
+                <span>Exit Full Screen</span>
+              </Button>
+              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-white/90">
+                <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+                <span>{pageNames[mobilePage]}</span>
               </div>
+            </div>
 
-              {/* Middle Video Simulation & Central Play/Pause button */}
-              <div className="relative z-10 flex flex-1 items-center justify-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    const isPlaying = activePlayingClipId === clip.id;
-                    setActivePlayingClipId(isPlaying ? null : clip.id);
-                    notify(
-                      isPlaying
-                        ? `Paused @${clip.winnerName}`
-                        : `Playing video reaction of @${clip.winnerName}`,
-                    );
-                    if (!isPlaying) playSoundEffect("WIN");
-                  }}
-                  className={`size-20 sm:size-24 rounded-full border-2 border-white/40 text-white backdrop-blur-2xl transition-all active:scale-90 hover:scale-105 shadow-glow ${
-                    activePlayingClipId === clip.id
-                      ? "border-accent bg-accent/40 shadow-glow animate-pulse"
-                      : "bg-black/40 hover:bg-black/60"
-                  }`}
-                  aria-label={
-                    activePlayingClipId === clip.id
-                      ? `Pause video for ${clip.winnerName}`
-                      : `Play video for ${clip.winnerName}`
-                  }
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setSound((v) => {
+                    const next = !v;
+                    notify(next ? "Sound enabled 🔊" : "Sound muted 🔇");
+                    if (next) playSoundEffect("WIN");
+                    return next;
+                  });
+                }}
+                aria-label={sound ? "Mute sound effects" : "Enable sound effects"}
+                className="size-8 rounded-full border border-white/20 bg-white/10 text-white transition-all active:scale-95 hover:bg-white/20 hover:text-white"
+              >
+                {sound ? (
+                  <Volume2 className="size-3.5 text-primary" />
+                ) : (
+                  <VolumeX className="size-3.5 text-white/50" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  selectPage(4);
+                  notify("Wallet page");
+                }}
+                className="h-8 rounded-full border border-primary/40 bg-primary/20 px-3 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground"
+              >
+                <Wallet className="size-3.5" />
+                <span className="hidden sm:inline">Connect</span>
+              </Button>
+            </div>
+          </header>
+
+          {/* Full-Screen Sliding Pages Carousel */}
+          <div
+            className="flex h-full transition-transform duration-300 ease-out motion-reduce:transition-none"
+            style={{ transform: `translateX(-${mobilePage * 100}%)` }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Page 0: Live / Bet */}
+            <article className="h-[100dvh] w-full shrink-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-16 pb-24">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl py-2">
+                <LivePanel mobile />
+              </div>
+            </article>
+
+            {/* Page 1: Winners Reel (Vertical Snap Reels) */}
+            <article className="h-[100dvh] w-full shrink-0 overflow-y-scroll snap-y snap-mandatory touch-pan-y scrollbar-hide pt-14 pb-20">
+              {winnerClips.map((clip, index) => (
+                <section
+                  key={`fullscreen-${clip.id}`}
+                  className={`relative flex h-[calc(100dvh-3.5rem)] w-full snap-start snap-always flex-col justify-between overflow-hidden bg-gradient-to-b ${clip.bgGradient} p-5 sm:p-8`}
                 >
-                  {activePlayingClipId === clip.id ? (
-                    <Pause className="size-9 sm:size-10 text-accent" />
-                  ) : (
-                    <Play className="size-9 sm:size-10 fill-white translate-x-0.5" />
+                  {/* Real Captured / AI Media Background */}
+                  {clip.mediaUrl && (
+                    <>
+                      {clip.mediaType === "video" ? (
+                        <video
+                          src={clip.mediaUrl}
+                          autoPlay
+                          loop
+                          playsInline
+                          muted={!sound}
+                          className="absolute inset-0 size-full object-cover z-0"
+                        />
+                      ) : (
+                        <img
+                          src={clip.mediaUrl}
+                          alt={clip.caption}
+                          className="absolute inset-0 size-full object-cover z-0"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/60 pointer-events-none z-0" />
+                    </>
                   )}
-                </Button>
-              </div>
 
-              {/* Bottom Winner Info & TikTok Style Right Action Column */}
-              <div className="z-20 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 pb-3">
-                <div className="space-y-2.5 max-w-md">
-                  <div className="flex items-center gap-2.5">
-                    <span className="grid size-9 place-items-center rounded-full bg-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
-                      {clip.winnerName.slice(0, 2).toUpperCase()}
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-display text-base font-bold text-white drop-shadow-md">
-                          @{clip.winnerName}
-                        </span>
-                        <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-black text-accent-foreground shadow-md">
-                          <Trophy className="size-3" />
-                          {clip.amountWon} WIN
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-white/70">{clip.timeAgo}</span>
+                  {/* Top Reel Counter */}
+                  <div className="z-20 flex items-center justify-end pt-1">
+                    <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-3.5 py-1 text-xs font-bold text-white shadow-xl backdrop-blur-xl">
+                      <span className="text-primary font-mono">{index + 1}</span>
+                      <span className="text-white/40">/</span>
+                      <span className="text-white/80 font-mono">{winnerClips.length}</span>
+                      <span className="ml-1 text-[11px] text-accent font-semibold">Swipe ↕</span>
                     </div>
                   </div>
 
-                  <p className="text-sm font-medium leading-relaxed text-white drop-shadow-md">
-                    {clip.caption}
-                  </p>
-
-                  <div className="flex items-center gap-2 text-xs text-white/90">
-                    <span className="grid size-6 place-items-center rounded-full bg-black/50 backdrop-blur-md">
-                      <Music className="size-3.5 text-primary" />
-                    </span>
-                    <span className="truncate text-[11px] font-semibold">
-                      Chain Gang Winners Sound · Original Clip
-                    </span>
+                  {/* Middle Video Simulation & Central Play/Pause button */}
+                  <div className="relative z-10 flex flex-1 items-center justify-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const isPlaying = activePlayingClipId === clip.id;
+                        setActivePlayingClipId(isPlaying ? null : clip.id);
+                        notify(
+                          isPlaying
+                            ? `Paused @${clip.winnerName}`
+                            : `Playing video reaction of @${clip.winnerName}`,
+                        );
+                        if (!isPlaying) playSoundEffect("WIN");
+                      }}
+                      className={`size-20 sm:size-24 rounded-full border-2 border-white/40 text-white backdrop-blur-2xl transition-all active:scale-90 hover:scale-105 shadow-glow ${
+                        activePlayingClipId === clip.id
+                          ? "border-accent bg-accent/40 shadow-glow animate-pulse"
+                          : "bg-black/40 hover:bg-black/60"
+                      }`}
+                      aria-label={
+                        activePlayingClipId === clip.id
+                          ? `Pause video for ${clip.winnerName}`
+                          : `Play video for ${clip.winnerName}`
+                      }
+                    >
+                      {activePlayingClipId === clip.id ? (
+                        <Pause className="size-9 sm:size-10 text-accent" />
+                      ) : (
+                        <Play className="size-9 sm:size-10 fill-white translate-x-0.5" />
+                      )}
+                    </Button>
                   </div>
-                </div>
 
-                {/* TikTok Style Floating Right Action Buttons */}
-                <div className="flex flex-col items-center gap-3">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setWinnerClips((prev) =>
-                        prev.map((item) =>
-                          item.id === clip.id ? { ...item, likes: item.likes + 1 } : item,
-                        ),
-                      );
-                      playSoundEffect("WIN");
-                      notify("Liked winner reel! ❤️");
-                    }}
-                    className="flex h-auto flex-col items-center gap-1 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-110 hover:bg-black/80 hover:text-white"
-                  >
-                    <Heart className="size-5 fill-rose-500 text-rose-500" />
-                    <span className="text-[10px] font-bold">{clip.likes}</span>
-                  </Button>
+                  {/* Bottom Winner Info */}
+                  <div className="z-20 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 pb-3">
+                    <div className="space-y-2.5 max-w-md">
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid size-9 place-items-center rounded-full bg-primary font-display text-sm font-bold text-primary-foreground shadow-glow">
+                          {clip.winnerName.slice(0, 2).toUpperCase()}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-display text-base font-bold text-white drop-shadow-md">
+                              @{clip.winnerName}
+                            </span>
+                            <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-black text-accent-foreground shadow-md">
+                              <Trophy className="size-3" />
+                              {clip.amountWon} WIN
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-white/70">{clip.timeAgo}</span>
+                        </div>
+                      </div>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setChatOpen(true)}
-                    className="flex h-auto flex-col items-center gap-1 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-110 hover:bg-black/80 hover:text-white"
-                  >
-                    <MessageCircle className="size-5 text-accent" />
-                    <span className="text-[10px] font-bold">{clip.comments}</span>
-                  </Button>
+                      <p className="text-sm font-medium leading-relaxed text-white drop-shadow-md">
+                        {clip.caption}
+                      </p>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => shareClip(clip.id, clip.winnerName, clip.amountWon)}
-                    className="flex h-auto flex-col items-center gap-1 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-110 hover:bg-black/80 hover:text-white"
-                    aria-label={`Share deep link for ${clip.winnerName}'s win`}
-                  >
-                    <Share2 className="size-5 text-primary" />
-                    <span className="text-[10px] font-bold">Share</span>
-                  </Button>
-                </div>
+                      <div className="flex items-center gap-2 text-xs text-white/90">
+                        <span className="grid size-6 place-items-center rounded-full bg-black/50 backdrop-blur-md">
+                          <Music className="size-3.5 text-primary" />
+                        </span>
+                        <span className="truncate text-[11px] font-semibold">
+                          Chain Gang Winners Sound · Original Clip
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* TikTok Style Floating Right Action Buttons */}
+                    <div className="flex flex-col items-center gap-3">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setWinnerClips((prev) =>
+                            prev.map((item) =>
+                              item.id === clip.id ? { ...item, likes: item.likes + 1 } : item,
+                            ),
+                          );
+                          playSoundEffect("WIN");
+                          notify("Liked winner reel! ❤️");
+                        }}
+                        className="flex h-auto flex-col items-center gap-1 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-110 hover:bg-black/80 hover:text-white"
+                      >
+                        <Heart className="size-5 fill-rose-500 text-rose-500" />
+                        <span className="text-[10px] font-bold">{clip.likes}</span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setChatOpen(true)}
+                        className="flex h-auto flex-col items-center gap-1 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-110 hover:bg-black/80 hover:text-white"
+                      >
+                        <MessageCircle className="size-5 text-accent" />
+                        <span className="text-[10px] font-bold">{clip.comments}</span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => shareClip(clip.id, clip.winnerName, clip.amountWon)}
+                        className="flex h-auto flex-col items-center gap-1 rounded-full border border-white/20 bg-black/60 p-2.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-110 hover:bg-black/80 hover:text-white"
+                        aria-label={`Share deep link for ${clip.winnerName}'s win`}
+                      >
+                        <Share2 className="size-5 text-primary" />
+                        <span className="text-[10px] font-bold">Share</span>
+                      </Button>
+                    </div>
+                  </div>
+                </section>
+              ))}
+            </article>
+
+            {/* Page 2: The Feed */}
+            <article className="h-[100dvh] w-full shrink-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-16 pb-24">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl py-2">
+                <ActivityPanel mobile />
               </div>
-            </section>
-          ))}
+            </article>
+
+            {/* Page 3: Hash & Settings */}
+            <article className="h-[100dvh] w-full shrink-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-16 pb-24">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl space-y-4 py-2">
+                <QueuePanel mobile />
+                <SettingsPanel mobile />
+              </div>
+            </article>
+
+            {/* Page 4: Wallet */}
+            <article className="h-[100dvh] w-full shrink-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-16 pb-24">
+              <div className="mx-auto max-w-2xl sm:max-w-3xl lg:max-w-4xl py-2">
+                <WalletPanel mobile />
+              </div>
+            </article>
+          </div>
+
+          {/* Full Screen Bottom Pagination Pill */}
+          <div
+            className="fixed bottom-3.5 left-1/2 z-[110] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-black/80 px-3 py-1.5 backdrop-blur-2xl shadow-2xl transition-all duration-300"
+            aria-label={`Page ${mobilePage + 1} of ${pageNames.length}`}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Previous screen"
+              disabled={mobilePage === 0}
+              onClick={() => selectPage(mobilePage - 1)}
+              className={`size-7 rounded-full text-white transition-all duration-300 ${mobilePage === 0 ? "scale-75 opacity-0 pointer-events-none" : "opacity-100 hover:bg-white/20"}`}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <div className="flex items-center gap-2 px-1">
+              {pageNames.map((name, index) => (
+                <Button
+                  key={`fs-${name}`}
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Open ${name}`}
+                  onClick={() => selectPage(index)}
+                  className={`size-2.5 rounded-full p-0 transition-all ${index === mobilePage ? "bg-primary scale-125 shadow-glow" : "bg-white/30 hover:bg-white/60"}`}
+                  title={name}
+                />
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Next screen"
+              disabled={mobilePage === pageNames.length - 1}
+              onClick={() => selectPage(mobilePage + 1)}
+              className={`size-7 rounded-full text-white transition-all duration-300 ${mobilePage === pageNames.length - 1 ? "scale-75 opacity-0 pointer-events-none" : "opacity-100 hover:bg-white/20"}`}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+
+          {/* Full Screen Floating Quick Action Column */}
+          <div
+            aria-label="Floating quick actions and screens"
+            className={`fixed right-3.5 bottom-20 z-[110] flex flex-col items-center gap-1.5 transition-all duration-300 ease-in-out ${
+              showFloatingIcons
+                ? "opacity-100 translate-x-0 pointer-events-auto"
+                : "opacity-0 translate-x-12 pointer-events-none"
+            }`}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Open live chat"
+              onClick={() => {
+                setChatOpen(true);
+                notify("Live chat opened 💬");
+              }}
+              className="relative size-10 rounded-full border border-accent/60 bg-black/80 text-accent shadow-glow backdrop-blur-2xl transition-all duration-200 hover:scale-110 active:scale-90"
+            >
+              <MessageCircle className="size-4.5" />
+              <span className="absolute -top-0.5 -right-0.5 grid size-3 place-items-center rounded-full bg-accent text-[8px] font-black text-accent-foreground animate-pulse">
+                •
+              </span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Like draw"
+              aria-pressed={liked}
+              onClick={toggleLike}
+              className={`relative size-10 rounded-full border shadow-2xl backdrop-blur-2xl transition-all duration-200 hover:scale-110 active:scale-90 ${
+                liked
+                  ? "border-rose-500/80 bg-rose-500/30 text-rose-500 shadow-glow"
+                  : "border-white/20 bg-black/80 text-white/70 hover:border-rose-400 hover:text-rose-400"
+              }`}
+            >
+              <Heart className={`size-4.5 ${liked ? "fill-rose-500 text-rose-500" : ""}`} />
+            </Button>
+
+            <div className="my-0.5 h-0.5 w-5 rounded-full bg-white/20 backdrop-blur-sm" />
+
+            {[
+              { icon: Radio, label: "Live / Bet", page: 0 },
+              { icon: Film, label: "Winners Reel", page: 1 },
+              { icon: Sparkles, label: "The Feed", page: 2 },
+              { icon: Settings, label: "Hash & Settings", page: 3 },
+              { icon: Wallet, label: "Wallet", page: 4 },
+            ].map((item) => {
+              const isActive = mobilePage === item.page;
+
+              return (
+                <Button
+                  key={`fs-nav-${item.label}`}
+                  variant="ghost"
+                  size="icon"
+                  aria-label={item.label}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => selectPage(item.page)}
+                  className={`relative size-10 rounded-full border shadow-2xl backdrop-blur-2xl transition-all duration-200 hover:scale-110 active:scale-90 ${
+                    isActive
+                      ? "border-primary bg-primary text-primary-foreground shadow-glow scale-105"
+                      : "border-white/20 bg-black/80 text-white/70 hover:border-primary/50 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <item.icon className="size-4.5" />
+                </Button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
